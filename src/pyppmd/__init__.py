@@ -1,4 +1,4 @@
-from typing import Union
+#from typing import Union
 
 try:
     from importlib.metadata import PackageNotFoundError, version
@@ -53,12 +53,12 @@ class PpmdCompressor:
     """Compressor class to compress data by PPMd algorithm."""
 
     def __init__(
-        self, max_order: int = 6, mem_size: int = 8 << 20, restore_method=PPMD8_RESTORE_METHOD_RESTART, endmark=True
+        self, max_order = 6, mem_size = 8 << 20, restore_method=PPMD8_RESTORE_METHOD_RESTART, endmark=True
     ):
         self.encoder = Ppmd8Encoder(max_order, mem_size, restore_method, endmark)
         self.eof = False
 
-    def compress(self, data_or_str: Union[bytes, bytearray, memoryview, str]):
+    def compress(self, data_or_str):
         if type(data_or_str) == str:
             data = data_or_str.encode("UTF-8")
         elif _is_bytelike(data_or_str):
@@ -76,13 +76,13 @@ class PpmdDecompressor:
     """Decompressor class to decompress data by PPMd algorithm."""
 
     def __init__(
-        self, max_order: int = 6, mem_size: int = 8 << 20, restore_method=PPMD8_RESTORE_METHOD_RESTART, endmark=True
+        self, max_order = 6, mem_size = 8 << 20, restore_method=PPMD8_RESTORE_METHOD_RESTART, endmark=True
     ):
         self.decoder = Ppmd8Decoder(max_order=max_order, mem_size=mem_size, restore_method=restore_method, endmark=endmark)
         self.eof = False
         self.need_input = True
 
-    def decompress(self, data: Union[bytes, memoryview]):
+    def decompress(self, data):
         if self.decoder.eof:
             self.eof = True
             return b""
@@ -94,8 +94,8 @@ class PpmdDecompressor:
 
 
 def compress(
-    data_or_str: Union[bytes, bytearray, memoryview, str], *, max_order: int = 6, mem_size: int = 16 << 20
-) -> bytes:
+    data_or_str, max_order = 6, mem_size = 16 << 20
+):
     """Compress a block of data, return a bytes object.
     When pass `str` object, encoding "UTF-8" first, then compress it.
 
@@ -116,12 +116,11 @@ def compress(
 
 
 def decompress_str(
-    data: Union[bytes, bytearray, memoryview],
-    *,
-    max_order: int = 6,
-    mem_size: int = 16 << 20,
-    encoding: str = None,
-) -> Union[bytes, str]:
+    data,
+    max_order = 6,
+    mem_size = 16 << 20,
+    encoding = None,
+):
     """Decompress a PPMd data, return a bytes object.
 
     Arguments
@@ -139,11 +138,10 @@ def decompress_str(
 
 
 def decompress(
-    data: Union[bytes, bytearray, memoryview],
-    *,
-    max_order: int = 6,
-    mem_size: int = 16 << 20,
-) -> Union[bytes, str]:
+    data,
+    max_order = 6,
+    mem_size = 16 << 20,
+):
     """Decompress a PPMd data, return a bytes object.
 
     Arguments
@@ -156,7 +154,7 @@ def decompress(
     return _decompress(data, max_order, mem_size)
 
 
-def _decompress(data: Union[bytes, bytearray, memoryview], max_order: int, mem_size: int):
+def _decompress(data, max_order, mem_size):
     decomp = Ppmd8Decoder(max_order, mem_size)
     res = decomp.decode(data)
     return res

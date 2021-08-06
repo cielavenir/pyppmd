@@ -1,6 +1,6 @@
 import sys
 from threading import Lock
-from typing import Union
+#from typing import Union
 
 from ._cffi_ppmd import ffi, lib
 
@@ -38,7 +38,7 @@ class PpmdError(Exception):
 
 
 @ffi.def_extern()
-def raw_alloc(size: int) -> object:
+def raw_alloc(size):
     if size == 0:
         return ffi.NULL
     block = ffi.new("char[]", size)
@@ -47,7 +47,7 @@ def raw_alloc(size: int) -> object:
 
 
 @ffi.def_extern()
-def raw_free(o: object) -> None:
+def raw_free(o):
     if o in _allocated:
         _allocated.remove(o)
 
@@ -211,10 +211,10 @@ class PpmdBaseEncoder:
         out.initAndGrow(out_buf, -1)
         return (out, out_buf)
 
-    def encode(self, data) -> bytes:
+    def encode(self, data):
         return b""
 
-    def flush(self) -> bytes:
+    def flush(self):
         return b""
 
     def _release(self):
@@ -364,7 +364,7 @@ class PpmdBaseDecoder:
 
 
 class Ppmd7Encoder(PpmdBaseEncoder):
-    def __init__(self, max_order: int, mem_size: int):
+    def __init__(self, max_order, mem_size):
         if mem_size > sys.maxsize:
             raise ValueError("Mem_size exceed to platform limit.")
         if (_PPMD7_MIN_ORDER > max_order or max_order > _PPMD7_MAX_ORDER) or (
@@ -377,7 +377,7 @@ class Ppmd7Encoder(PpmdBaseEncoder):
         lib.ppmd7_state_init(self.ppmd, max_order, mem_size, self._allocator)
         lib.ppmd7_compress_init(self.rc, self.writer)
 
-    def encode(self, data) -> bytes:
+    def encode(self, data):
         self.lock.acquire()
         in_buf = self._setup_inBuffer(data)
         out, out_buf = self._setup_outBuffer()
@@ -390,7 +390,7 @@ class Ppmd7Encoder(PpmdBaseEncoder):
         self.lock.release()
         return out.finish(out_buf)
 
-    def flush(self) -> bytes:
+    def flush(self):
         if self.flushed:
             raise ("Ppmd7Encoder: Double flush error.")
         self.lock.acquire()
@@ -414,7 +414,7 @@ class Ppmd7Encoder(PpmdBaseEncoder):
 
 
 class Ppmd7Decoder(PpmdBaseDecoder):
-    def __init__(self, max_order: int, mem_size: int):
+    def __init__(self, max_order, mem_size):
         if mem_size > sys.maxsize:
             raise ValueError("Mem_size exceed to platform limit.")
         if _PPMD7_MIN_ORDER <= max_order <= _PPMD7_MAX_ORDER and _PPMD7_MIN_MEM_SIZE <= mem_size <= _PPMD7_MAX_MEM_SIZE:
@@ -427,7 +427,7 @@ class Ppmd7Decoder(PpmdBaseDecoder):
         else:
             raise ValueError("PPMd wrong parameters.")
 
-    def decode(self, data: Union[bytes, bytearray, memoryview], length: int) -> bytes:
+    def decode(self, data, length):
         if not isinstance(length, int) or length < 0:
             raise PpmdError("Wrong length argument is specified. It should be positive integer.")
         self.lock.acquire()
@@ -436,7 +436,7 @@ class Ppmd7Decoder(PpmdBaseDecoder):
             lib.ppmd7_decompress_init(self.rc, self.reader)
             self.inited = True
         out, out_buf = self._setup_outBuffer()
-        remaining: int = length
+        remaining = length
         while remaining > 0:
             size = min(out_buf.size, remaining)
             out_size = lib.ppmd7_decompress(self.ppmd, self.rc, out_buf, in_buf, size)
@@ -450,14 +450,14 @@ class Ppmd7Decoder(PpmdBaseDecoder):
         self.lock.release()
         return res
 
-    def flush(self, length: int) -> bytes:
+    def flush(self, length):
         if not isinstance(length, int) or length < 0:
             raise PpmdError("Wrong length argument is specified. It should be positive integer.")
         self.lock.acquire()
         if length > 0:
             in_buf, use_input_buffer = self._setup_inBuffer(b"")
             out, out_buf = self._setup_outBuffer()
-            remaining: int = length
+            remaining = length
             while remaining > 0:
                 if out_buf.pos == out_buf.size:
                     out.grow(out_buf)
@@ -503,7 +503,7 @@ class Ppmd8Encoder(PpmdBaseEncoder):
         lib.Ppmd8_RangeEnc_Init(self.ppmd)
         lib.Ppmd8_Init(self.ppmd, max_order, restore_method)
 
-    def encode(self, data) -> bytes:
+    def encode(self, data):
         self.lock.acquire()
         in_buf = self._setup_inBuffer(data)
         out, out_buf = self._setup_outBuffer()
@@ -513,7 +513,7 @@ class Ppmd8Encoder(PpmdBaseEncoder):
         self.lock.release()
         return out.finish(out_buf)
 
-    def flush(self) -> bytes:
+    def flush(self):
         self.lock.acquire()
         if self.flushed:
             self.lock.release()
@@ -541,7 +541,7 @@ class Ppmd8Encoder(PpmdBaseEncoder):
 
 
 class Ppmd8Decoder(PpmdBaseDecoder):
-    def __init__(self, max_order: int, mem_size: int, restore_method=PPMD8_RESTORE_METHOD_RESTART, endmark=True):
+    def __init__(self, max_order, mem_size, restore_method=PPMD8_RESTORE_METHOD_RESTART, endmark=True):
         self._init_common()
         self.ppmd = ffi.new("CPpmd8 *")
         self.args = ffi.new("ppmd8_args *")
@@ -559,7 +559,7 @@ class Ppmd8Decoder(PpmdBaseDecoder):
         lib.Ppmd8_RangeDec_Init(self.ppmd)
         self.args.finished = True
 
-    def decode(self, data: Union[bytes, bytearray, memoryview], length: int = -1):
+    def decode(self, data, length=-1):
         if not isinstance(length, int):
             raise PpmdError("Wrong length argument is specified.")
         self.lock.acquire()

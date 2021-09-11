@@ -50,6 +50,7 @@ else:  # C implementation
     # binary extension
     kwargs["name"] = "pyppmd.c._ppmd"
     kwargs["sources"].append("src/ext/_ppmdmodule.c")
+    kwargs["extra_compile_args"] = ['-std=gnu99']
 
     binary_extension = Extension(**kwargs)
 

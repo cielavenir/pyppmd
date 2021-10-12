@@ -22,7 +22,7 @@ Simple compression/decompression
         * function :py:func:`decompress`
 
 
-.. py:function:: compress(bytes_or_str: Union[bytes, bytearray, memoryview, str], max_order: int, mem_size: int)
+.. py:function:: compress(bytes_or_str: Union[bytes, bytearray, memoryview, str], max_order: int, mem_size: int, variant: str)
 
     Compress *bytes_or_str*, return the compressed data.
 
@@ -32,14 +32,16 @@ Simple compression/decompression
     :type max_order: int
     :param mem_size: memory size used for building PPMd model
     :type mem_size: int
-     :return: Compressed data
+    :param variant: PPMd variant name, only accept "H" or "I"
+    :type variant: str
+    :return: Compressed data
     :rtype: bytes
 
 .. sourcecode:: python
 
     compressed_data = compress(data)
 
-.. py:function:: decompress_str(data: Union[bytes, memoryview], max_order: int, mem_size: int, encoding: Optional[str])
+.. py:function:: decompress_str(data: Union[bytes, memoryview], max_order: int, mem_size: int, encoding: str, variant: str)
 
     Decompress *data*, return the decompressed text.
 
@@ -54,6 +56,8 @@ Simple compression/decompression
     :type mem_size: int
     :param encoding: Encoding name to use when decoding raw decompressed data
     :type encoding: str
+    :param variant: PPMd variant name, only accept "H" or "I"
+    :type variant: str
     :return: Decompressed text
     :rtype: str
     :raises PpmdError: If decompression fails.
@@ -63,7 +67,7 @@ Simple compression/decompression
     decompressed_text = decompress_str(data)
 
 
-.. py:function:: decompress(data: Union[bytes, memoryview], max_order: int, mem_size: int)
+.. py:function:: decompress(data: Union[bytes, memoryview], max_order: int, mem_size: int, variant: str)
 
     Decompress *data*, return the decompressed data.
 
@@ -73,6 +77,8 @@ Simple compression/decompression
     :type max_order: int
     :param mem_size: memory size used for building PPMd model
     :type mem_size: int
+    :param variant: PPMd variant name, only accept "H" or "I"
+    :type variant: str
     :return: Decompressed data
     :rtype: bytes
     :raises PpmdError: If decompression fails.
@@ -91,14 +97,18 @@ Streaming compression
 
     A streaming compressor. It's thread-safe at method level.
 
-    .. py:method:: __init__(self, max_order: int, mem_size: int)
+    .. py:method:: __init__(self, max_order: int, mem_size: int, variant: str, restore_method: int)
 
-        Initialize a PpmdCompressor object.
+        Initialize a PpmdCompressor object. restore_method param is affected only when variant is "I".
 
         :param max_order: maximum order of PPMd algorithm
         :type max_order: int
         :param mem_size: memory size used for building PPMd model
         :type mem_size: int
+        :param variant: PPMd variant name, only accept "H" or "I"
+        :type variant: str
+        :param restore_method: PPMD8_RESTORE_METHOD_RESTART(0) or PPMD8_RESTORE_METHOD_CUTOFF(1)
+        :type restore_method: int
 
     .. py:method:: compress(self, data)
 
@@ -131,9 +141,9 @@ Streaming decompression
 
 .. py:class:: PpmdDecompressor
 
-    A streaming decompressor. Thread-safe at method level.
+    A streaming decompressor. Thread-safe at method level. A restore_method param is affected only when variant is "I".
 
-    .. py:method:: __init__(self, max_order: int, mem_size: int)
+    .. py:method:: __init__(self, max_order: int, mem_size: int, variant: str, restore_method: int)
 
         Initialize a PpmdDecompressor object.
 
@@ -141,6 +151,10 @@ Streaming decompression
         :type max_order: int
         :param mem_size: memory size used for building PPMd model
         :type mem_size: int
+        :param variant: PPMd variant name, only accept "H" or "I"
+        :type variant: str
+        :param restore_method: PPMD8_RESTORE_METHOD_RESTART(0) or PPMD8_RESTORE_METHOD_CUTOFF(1)
+        :type restore_method: int
 
     .. py:method:: decompress(self, data, max_length=-1)
 
@@ -152,13 +166,18 @@ Streaming decompression
 
     .. py:attribute:: needs_input
 
-        If the *max_length* output limit in :py:meth:`~PpmdDecompressor.decompress` method has been reached, and the decompressor has (or may has) unconsumed input data, it will be set to ``False``. In this case, pass ``b''`` to :py:meth:`~PpmdDecompressor.decompress` method may output further data.
+        If the *max_length* output limit in :py:meth:`~PpmdDecompressor.decompress` method has been reached,
+        and the decompressor has (or may has) unconsumed input data, it will be set to ``False``.
+        In this case, pass ``b''`` to :py:meth:`~PpmdDecompressor.decompress` method may output further data.
 
         If ignore this attribute when there is unconsumed input data, there will be a little performance loss because of extra memory copy.
+        This flag can be True even all input data are consumed, when decompressor can be able to accept more data in some case.
 
     .. py:attribute:: eof
 
-        ``True`` means the end of the first frame has been reached. If decompress data after that, an ``EOFError`` exception will be raised.
+        ``True`` means the end of the first frame has been reached.
+        If decompress data after that, an ``EOFError`` exception will be raised.
+        This flag can be False even all input data are consumed, when decompressor can be able to accept more data in some case.
 
     .. py:attribute:: unused_data
 

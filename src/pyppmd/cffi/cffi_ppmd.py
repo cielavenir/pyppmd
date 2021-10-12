@@ -185,7 +185,7 @@ class PpmdBaseEncoder:
         self.closed = False
         self.flushed = False
         self.writer = ffi.new("BufferWriter *")
-        self._allocator = ffi.new("ISzAlloc *")
+        self._allocator = ffi.new("IAlloc *")
         self._allocator.Alloc = lib.raw_alloc
         self._allocator.Free = lib.raw_free
 
@@ -235,10 +235,12 @@ class PpmdBaseDecoder:
 
     def _init_common(self):
         self.lock = Lock()
-        self._allocator = ffi.new("ISzAlloc *")
+        self._allocator = ffi.new("IAlloc *")
         self._allocator.Alloc = lib.raw_alloc
         self._allocator.Free = lib.raw_free
         self.reader = ffi.new("BufferReader *")
+        self._in_buf = _new_nonzero("InBuffer *")
+        self.reader.inBuffer = self._in_buf
         self._input_buffer = ffi.NULL
         self._input_buffer_size = 0
         self._in_begin = 0
@@ -247,12 +249,13 @@ class PpmdBaseDecoder:
         self.inited = False
 
     def _release(self):
+        ffi.release(self._in_buf)
         ffi.release(self.reader)
         ffi.release(self._allocator)
 
     def _setup_inBuffer(self, data):
         # Input buffer
-        in_buf = _new_nonzero("InBuffer *")
+        in_buf = self.reader.inBuffer
         # Prepare input buffer w/wo unconsumed data
         if self._in_begin == self._in_end:
             # No unconsumed data
@@ -317,8 +320,6 @@ class PpmdBaseDecoder:
             in_buf.pos = 0
 
         # Now in_buf.pos == 0
-
-        self.reader.inBuffer = in_buf
         return in_buf, use_input_buffer
 
     def _setup_outBuffer(self):
@@ -390,13 +391,13 @@ class Ppmd7Encoder(PpmdBaseEncoder):
         self.lock.release()
         return out.finish(out_buf)
 
-    def flush(self):
+    def flush(self, endmark=False):
         if self.flushed:
             raise ("Ppmd7Encoder: Double flush error.")
         self.lock.acquire()
         self.flushed = True
         out, out_buf = self._setup_outBuffer()
-        lib.ppmd7_compress_flush(self.rc)
+        lib.ppmd7_compress_flush(self.ppmd, self.rc, endmark)
         res = out.finish(out_buf)
         lib.ppmd7_state_close(self.ppmd, self._allocator)
         ffi.release(self.ppmd)
@@ -423,6 +424,8 @@ class Ppmd7Decoder(PpmdBaseDecoder):
             self.ppmd = ffi.new("CPpmd7 *")
             self.rc = ffi.new("CPpmd7z_RangeDec *")
             self.flushed = False
+            self._eof = False
+            self._needs_input = True
             lib.ppmd7_state_init(self.ppmd, max_order, mem_size, self._allocator)
         else:
             raise ValueError("PPMd wrong parameters.")
@@ -440,6 +443,12 @@ class Ppmd7Decoder(PpmdBaseDecoder):
         while remaining > 0:
             size = min(out_buf.size, remaining)
             out_size = lib.ppmd7_decompress(self.ppmd, self.rc, out_buf, in_buf, size)
+            if out_size == -2:
+                self.lock.release()
+                raise PpmdError("DecodeError.")
+            if self.rc.Code == 0:
+                self._eof = True
+                break
             if out_buf.pos == out_buf.size:
                 out.grow(out_buf)
             elif in_buf.pos == in_buf.size:
@@ -448,6 +457,8 @@ class Ppmd7Decoder(PpmdBaseDecoder):
         self._unconsumed_in(in_buf, use_input_buffer)
         res = out.finish(out_buf)
         self.lock.release()
+        if self._eof:
+            self._needs_input = False
         return res
 
     def flush(self, length):
@@ -478,8 +489,17 @@ class Ppmd7Decoder(PpmdBaseDecoder):
         ffi.release(self.rc)
         self._release()
         self.flushed = True
+        self._needs_input = False
         self.lock.release()
         return res
+
+    @property
+    def needs_input(self):
+        return self._needs_input
+
+    @property
+    def eof(self):
+        return self._eof
 
     def __enter__(self):
         return self
@@ -490,13 +510,12 @@ class Ppmd7Decoder(PpmdBaseDecoder):
 
 
 class Ppmd8Encoder(PpmdBaseEncoder):
-    def __init__(self, max_order, mem_size, restore_method=PPMD8_RESTORE_METHOD_RESTART, endmark=True):
+    def __init__(self, max_order, mem_size, restore_method=PPMD8_RESTORE_METHOD_RESTART):
         self.lock = Lock()
         if mem_size > sys.maxsize:
             raise ValueError("Mem_size exceed to platform limit.")
         self._init_common()
         self.ppmd = ffi.new("CPpmd8 *")
-        self.endmark = endmark
         lib.ppmd8_compress_init(self.ppmd, self.writer)
         lib.Ppmd8_Construct(self.ppmd)
         lib.Ppmd8_Alloc(self.ppmd, mem_size, self._allocator)
@@ -507,23 +526,21 @@ class Ppmd8Encoder(PpmdBaseEncoder):
         self.lock.acquire()
         in_buf = self._setup_inBuffer(data)
         out, out_buf = self._setup_outBuffer()
-        while lib.ppmd8_compress(self.ppmd, out_buf, in_buf, self.endmark) > 0:
+        while lib.ppmd8_compress(self.ppmd, out_buf, in_buf) > 0:
             if out_buf.pos == out_buf.size:
                 out.grow(out_buf)
         self.lock.release()
         return out.finish(out_buf)
 
-    def flush(self):
+    def flush(self, endmark=True):
         self.lock.acquire()
         if self.flushed:
             self.lock.release()
             return
         self.flushed = True
         out, out_buf = self._setup_outBuffer()
-        if self.endmark:
-            lib.Ppmd8_EncodeSymbol(self.ppmd, 0x01)  # endmark
-            lib.Ppmd8_EncodeSymbol(self.ppmd, 0x00)
-        lib.Ppmd8_EncodeSymbol(self.ppmd, -1)  # endmark
+        if endmark:
+            lib.Ppmd8_EncodeSymbol(self.ppmd, -1)
         lib.Ppmd8_RangeEnc_FlushData(self.ppmd)
         res = out.finish(out_buf)
         lib.Ppmd8_Free(self.ppmd, self._allocator)
@@ -541,13 +558,11 @@ class Ppmd8Encoder(PpmdBaseEncoder):
 
 
 class Ppmd8Decoder(PpmdBaseDecoder):
-    def __init__(self, max_order, mem_size, restore_method=PPMD8_RESTORE_METHOD_RESTART, endmark=True):
+    def __init__(self, max_order, mem_size, restore_method=PPMD8_RESTORE_METHOD_RESTART):
         self._init_common()
         self.ppmd = ffi.new("CPpmd8 *")
-        self.args = ffi.new("ppmd8_args *")
-        self.args.endmark = endmark
+        self.threadInfo = ffi.new("ppmd_info *")
         lib.Ppmd8_Construct(self.ppmd)
-        lib.ppmd8_decompress_init(self.ppmd, self.reader)
         lib.Ppmd8_Alloc(self.ppmd, mem_size, self._allocator)
         lib.Ppmd8_Init(self.ppmd, max_order, restore_method)
         self._inited = False
@@ -556,8 +571,8 @@ class Ppmd8Decoder(PpmdBaseDecoder):
         self._finished = False
 
     def _init2(self):
+        lib.ppmd8_decompress_init(self.ppmd, self.reader, self.threadInfo, self._allocator)
         lib.Ppmd8_RangeDec_Init(self.ppmd)
-        self.args.finished = True
 
     def decode(self, data, length=-1):
         if not isinstance(length, int):
@@ -565,6 +580,7 @@ class Ppmd8Decoder(PpmdBaseDecoder):
         self.lock.acquire()
         in_buf, use_input_buffer = self._setup_inBuffer(data)
         out, out_buf = self._setup_outBuffer()
+        self.threadInfo.out = out_buf
         if not self._inited:
             self._inited = True
             self._init2()
@@ -575,7 +591,9 @@ class Ppmd8Decoder(PpmdBaseDecoder):
                 break
             if out_buf.pos == out_buf.size:
                 out.grow(out_buf)
-            size = lib.ppmd8_decompress(self.ppmd, out_buf, in_buf, length, self.args)
+            self.lock.release()
+            size = lib.ppmd8_decompress(self.ppmd, out_buf, in_buf, length, self.threadInfo)
+            self.lock.acquire()
             if size == -1:
                 self._eof = True
                 self._needs_input = False
@@ -602,7 +620,7 @@ class Ppmd8Decoder(PpmdBaseDecoder):
         if self._finished:
             return
         self._finished = True
-        lib.Ppmd8T_Free(self.ppmd, self.args, self._allocator)
+        lib.Ppmd8T_Free(self.ppmd, self.threadInfo, self._allocator)
         ffi.release(self.ppmd)
         self._release()
 

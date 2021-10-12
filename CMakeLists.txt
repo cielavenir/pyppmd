@@ -5,7 +5,7 @@ set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
 
 # TARGET PYTHON version
-set(PY_VERSION 3.9)
+set(PY_VERSION 3.8)
 set(Python_FIND_IMPLEMENTATIONS CPython)
 #set(Python_FIND_IMPLEMENTATIONS PyPy)
 set(VENV_PATH "${CMAKE_BINARY_DIR}/venv")
@@ -49,7 +49,7 @@ add_custom_target(
 add_custom_target(
   generate_cffi
   BYPRODUCTS ${PY_CFFI}
-  COMMAND ${BUILD_EXT_PYTHON} setup.py build_ext ${BUILD_EXT_OPTION} --cffi
+  COMMAND ${BUILD_EXT_PYTHON} setup.py build_ext ${BUILD_EXT_OPTION} --cffi --inplace
   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
   DEPENDS venv.stamp
   SOURCES ${pyppmd_sources})
@@ -106,10 +106,10 @@ int main(int argc, char **argv) {
     std::filesystem::path vsite_path_b = \"${VPKG_PATH_B}\";
     std::string pycode =
         \"import sys\\n\"
-        \"import pytest\\n\"
         \"sys.path.append('src')\\n\"
         \"sys.path.append('\" + vsite_path_a.string() + \"')\\n\"
         \"sys.path.append('\" + vsite_path_b.string() + \"')\\n\"
+        \"import pytest\\n\"
         \"pytest.main(\" + args + \")\\n\";
     wchar_t * program_name = Py_DecodeLocale(argv[0], NULL);
     Py_SetProgramName(program_name);
@@ -121,7 +121,8 @@ int main(int argc, char **argv) {
 file(
     WRITE ${CMAKE_CURRENT_BINARY_DIR}/pypytest_runner.cpp
      "
-#include <stdlib>
+#include <string>
+#include <cstring>
 #include <filesystem>
 #include <PyPy.h>
 int main(int argc, char **argv) {
@@ -141,24 +142,26 @@ int main(int argc, char **argv) {
     std::filesystem::path vsite_path_b = \"${VPKG_PATH_B}\";
     std::string pycode =
         \"import sys\\n\"
-        \"import pytest\\n\"
         \"sys.path.append('src')\\n\"
         \"sys.path.append('\" + vsite_path_a.string() + \"')\\n\"
         \"sys.path.append('\" + vsite_path_b.string() + \"')\\n\"
+        \"import pytest\\n\"
         \"pytest.main(\" + args + \")\\n\";
     rpython_startup_code();
     pypy_setup_home(NULL, 1);
-    pypy_execute_source(pycode.c_str());
+    char * cstr = new char [pycode.length()+1];
+    std::strcpy (cstr, pycode.c_str());
+    pypy_execute_source(cstr);
     return 0;
 }")
 if ("${Python_INTERPRETER_ID}" STREQUAL "PyPy")
-  add_executable(pytest_runner ${CMAKE_CURRENT_BINARY_DIR}/pypytest_runner.c)
+  add_executable(pytest_runner ${CMAKE_CURRENT_BINARY_DIR}/pypytest_runner.cpp)
 else()
   add_executable(pytest_runner ${CMAKE_CURRENT_BINARY_DIR}/pytest_runner.cpp)
 endif()
 target_include_directories(pytest_runner PRIVATE ${Python_INCLUDE_DIRS})
 target_link_libraries(pytest_runner PRIVATE ${Python_LIBRARIES})
-add_dependencies(pytest_runner venv.stamp generate_ext)
+add_dependencies(pytest_runner venv.stamp generate_ext generate_cffi)
 
 # ##################################################################################################
 # for build test and analytics
@@ -178,10 +181,9 @@ add_library(
         lib/Ppmd8Enc.c
         lib2/Buffer.c
         lib2/Buffer.h
-        lib2/threading.c
-        lib2/threading.h
-        lib2/Ppmd8Tdecoder.c
-        lib2/Ppmd8Tdecoder.h
+        lib2/win_pthreads.h
+        lib2/ThreadDecoder.c
+        lib2/ThreadDecoder.h
         src/ext/_ppmdmodule.c)
 target_include_directories(pyppmd PRIVATE ${Python_INCLUDE_DIRS})
 target_link_libraries(pyppmd PRIVATE ${Python_LIBRARIES})

@@ -24,7 +24,7 @@ def test_ppmd7_encoder2():
     encoder = pyppmd.Ppmd7Encoder(6, 16 << 20)
     result = encoder.encode(data[:33])
     result += encoder.encode(data[33:])
-    result += encoder.flush()
+    result += encoder.flush(endmark=False)
     assert len(result) == 41
     assert result == encoded
 
@@ -34,6 +34,8 @@ def test_ppmd7_decoder():
     result = decoder.decode(encoded, 66)
     result += decoder.flush(66 - len(result))
     assert result == data
+    assert decoder.eof
+    assert not decoder.needs_input
 
 
 def test_ppmd7_decoder2():

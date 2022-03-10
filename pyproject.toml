@@ -1,7 +1,7 @@
 [build-system]
 requires = ["setuptools", "wheel",
-            "setuptools_scm[toml] ~= 5.0; python_version >= '3.5'",
-            "setuptools_scm[toml] ~= 3.0; python_version < '3.5'",
+            "setuptools_scm[toml] ~= 5.0; python_version != '3.4'",
+            "setuptools_scm[toml] ~= 3.0; python_version = '3.4'",
             "cffi; platform_python_implementation == 'PyPy'",
             "cffi; python_version < '3'",
            ]

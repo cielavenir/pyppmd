@@ -7,6 +7,50 @@ All notable changes to this project will be documented in this file.
 `Unreleased`_
 =============
 
+`v0.17.4`_
+==========
+Fixed
+-----
+* ppmd7: allow multiple decode without additional input data (#84)
+* ppmd8: test: Fix fuzzer test program (#82)
+
+Changed
+-------
+* CI: bump actions/checkout@v3 (#81)
+* CI: bump actions/setup-python@v3 (#80)
+* CI: bump pypa/cibuildwheel@2.3.1 (#78)
+* Update 32bit detection logic
+
+`v0.17.3`_
+==========
+Fixed
+-----
+* Build on MingW/MSYS2(#68,#69)
+
+Added
+-----
+* Test on Python 3.10.0, PyPY-3.6 and PyPy-3.7 (#71)
+
+Changed
+-------
+* CI: use pypa/ciwheelbuild(#70)
+* CI: add dependabot(#70)
+* Bump versions
+  - CI: pypa/ciwheelbuild@2.2.2
+  - CI: run-on-arch@2.1.1
+  - CI: actions/stale@4
+* CI: exclude pypy on windows
+* CI: exclude cp310-macos because python 3.10 for macos is superceded
+* CI: publish musllinux wheel
+* CI: improve cibuildwheel performance
+
+`v0.17.1`_
+==========
+
+Added
+-----
+* Wheels for python 3.10
+
 `v0.17.0`_
 ==========
 
@@ -212,7 +256,10 @@ v0.10.0
 * First Alpha
 
 .. History links
-.. _Unreleased: https://github.com/miurahr/py7zr/compare/v0.17.0...HEAD
+.. _Unreleased: https://github.com/miurahr/py7zr/compare/v0.17.4...HEAD
+.. _v0.17.4: https://github.com/miurahr/py7zr/compare/v0.17.3...v0.17.4
+.. _v0.17.3: https://github.com/miurahr/py7zr/compare/v0.17.1...v0.17.3
+.. _v0.17.1: https://github.com/miurahr/py7zr/compare/v0.17.0...v0.17.1
 .. _v0.17.0: https://github.com/miurahr/py7zr/compare/v0.16.1...v0.17.0
 .. _v0.16.1: https://github.com/miurahr/py7zr/compare/v0.16.0...v0.16.1
 .. _v0.16.0: https://github.com/miurahr/py7zr/compare/v0.15.2...v0.16.0

@@ -11,10 +11,7 @@ testdata = testdata_path.joinpath("10000SalesRecords.csv")
 src_size = testdata.stat().st_size
 READ_BLOCKSIZE = 1048576
 
-targets = [
-    ("PPMd H", 7, 6, 16 << 20),
-    ("PPMd I", 8, 8, 8 << 20),
-]
+targets = [("PPMd H", 7, 6, 16 << 20), ("PPMd I", 8, 8, 8 << 20)]
 
 
 @pytest.mark.benchmark(group="compress")
@@ -50,14 +47,13 @@ def test_benchmark_text_decompress(tmp_path, benchmark, name, var, max_order, me
                 remaining = src_size
                 data = src.read(READ_BLOCKSIZE)
                 while remaining > 0:
-                    if len(data) == 0:
-                        target.write(decoder.flush(remaining))
+                    out = decoder.decode(data, remaining)
+                    if len(out) == 0:
                         break
-                    else:
-                        out = decoder.decode(data, remaining)
                     target.write(out)
                     remaining = remaining - len(out)
                     data = src.read(READ_BLOCKSIZE)
+            assert remaining == 0
 
     # prepare compressed data
     if var == 7:

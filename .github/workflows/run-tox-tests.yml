@@ -8,27 +8,45 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        python-version: [3.6, 3.7, 3.8, 3.9, pypy3]
+        python-version: [
+            "3.6",
+            "3.7",
+            "3.8",
+            "3.9",
+            "3.10",
+            "pypy-3.6",
+            "pypy-3.7",
+        ]
+        architecture: ["x64"]
         exclude:
           - os: windows-latest
-            python-version: pypy3
+            python-version: "pypy-3.6"
+            architecture: "x64"
+          - os: windows-latest
+            python-version: "pypy-3.7"
+            architecture: "x64"
           - os: macos-latest
-            python-version: pypy3
-    name: Test on Python ${{ matrix.python-version }} (${{ matrix.os }})
+            python-version: "pypy-3.6"
+            architecture: "x64"
+        include:
+          - os: windows-latest
+            python-version: "3.7"
+            architecture: "x86"
+    name: Python ${{ matrix.python-version }} (${{ matrix.architecture }}) - ${{ matrix.os }}
     steps:
       - name: Checkout 🛎️
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 20
       - name: Set up Python 🐍
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v3
         with:
           python-version: ${{ matrix.python-version }}
-          architecture: x64
+          architecture: ${{ matrix.architecture }}
       - name: Install dependencies
         run: |
           pip install -U pip
-          pip install tox tox-gh-actions coveralls
+          pip install tox tox-gh-actions coverage[toml] coveralls
       - name: Test project with tox
         timeout-minutes: 7
         run: |
@@ -52,10 +70,10 @@ jobs:
         distro: [ubuntu20.04]
     steps:
       - name: Checkout 🛎️
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 20
-      - uses: uraimo/run-on-arch-action@v2.0.9
+      - uses: uraimo/run-on-arch-action@v2.1.1
         name: Build & run test
         with:
           arch: ${{ matrix.arch }}
@@ -69,6 +87,39 @@ jobs:
             python3 -m tox -e py38
           env: |  # YAML, but pipe character is necessary
             PYTEST_ADDOPTS: "--benchmark-skip"
+
+  test_on_msys2_mingw:
+   name: Test on Mingw32/Windows
+   if: ${{ false }}
+   runs-on: windows-2022
+   defaults:
+     run:
+       shell: msys2 {0}
+   steps:
+      - uses: msys2/setup-msys2@v2
+        with:
+          update: true
+          install: >-
+            base-devel
+            mingw-w64-x86_64-python
+            mingw-w64-x86_64-python-pip
+            mingw-w64-x86_64-gcc
+            git
+      - name: Check python header
+        run: ls -l D:/a/_temp/msys64/mingw64/include/python*/Python.h
+      - name: Checkout 🛎️
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 20
+      - name: Install python tox
+        run: |
+          pip install -U tox
+      - name: Run test
+        run: |
+          pip install -U tox
+           python -m tox -e py39
+        env:
+          PYTEST_ADDOPTS: "--benchmark-skip"
 
   finish:
     name: Indicate completion to coveralls.io

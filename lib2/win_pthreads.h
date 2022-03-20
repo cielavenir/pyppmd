@@ -62,6 +62,14 @@
 #include <sys/timeb.h>
 #include <time.h>
 
+#if _MSC_VER < 1900
+struct timespec
+{
+time_t tv_sec; // Seconds - >= 0
+long tv_nsec; // Nanoseconds - [0, 999999999]
+};
+#endif
+
 #ifndef ETIMEDOUT
 #define ETIMEDOUT	110
 #endif /* ETIMEDOUT */

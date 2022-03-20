@@ -329,9 +329,10 @@ void ppmd7_compress_init(CPpmd7z_RangeEnc *rc, BufferWriter *writer)
 
 int ppmd7_decompress_init(CPpmd7z_RangeDec *rc, BufferReader *reader, ppmd_info *info, IAllocPtr allocator)
 {
+    Bool res = 0;
     reader->Read = (Byte (*)(void *)) Reader;
     rc->Stream = (IByteIn *) reader;
-    Bool res = Ppmd7z_RangeDec_Init(rc);
+    res = Ppmd7z_RangeDec_Init(rc);
     Ppmd_thread_decode_init(info, allocator);
     return res;
 }

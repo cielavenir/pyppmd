@@ -91,26 +91,32 @@ static void *
 Ppmd7T_decode_run(void *p) {
     ppmd_info *threadInfo = (ppmd_info *)p;
     ppmd_thread_control_t *tc = (ppmd_thread_control_t *)threadInfo->t;
-    pthread_mutex_lock(&tc->mutex);
-    tc->finished = False;
-    CPpmd7 * cPpmd7 = (CPpmd7 *)(threadInfo->cPpmd);
-    CPpmd7z_RangeDec * rc = (CPpmd7z_RangeDec *)(threadInfo->rc);
-    BufferReader *reader = (BufferReader *) rc->Stream;
-    int max_length = threadInfo->max_length;
-    pthread_mutex_unlock(&tc->mutex);
-
+    CPpmd7 *cPpmd7 = NULL;
+    CPpmd7z_RangeDec *rc = NULL;
+    BufferReader *reader = NULL;
+    int max_length = 0;
     int i = 0;
     int result;
+
+    pthread_mutex_lock(&tc->mutex);
+    tc->finished = False;
+    cPpmd7 = (CPpmd7 *)(threadInfo->cPpmd);
+    rc = (CPpmd7z_RangeDec *)(threadInfo->rc);
+    reader = (BufferReader *) rc->Stream;
+    max_length = threadInfo->max_length;
+    pthread_mutex_unlock(&tc->mutex);
+
     while (i < max_length ) {
         Bool inbuf_empty = reader->inBuffer->size == reader->inBuffer->pos;
         Bool outbuf_full = threadInfo->out->size == threadInfo->out->pos;
+        int c;
         if (outbuf_full) {
             break;
         }
         if (inbuf_empty && reader->inBuffer->size > 0) {
             break;
         }
-        int c = Ppmd7_DecodeSymbol(cPpmd7, rc);
+        c = Ppmd7_DecodeSymbol(cPpmd7, rc);
         if (c == PPMD_RESULT_EOF) {
             result = PPMD_RESULT_EOF;
             goto exit;
@@ -136,14 +142,14 @@ Ppmd7T_decode_run(void *p) {
 
 int Ppmd7T_decode(CPpmd7 *cPpmd7, CPpmd7z_RangeDec *rc, OutBuffer *out, int max_length, ppmd_info *threadInfo) {
     ppmd_thread_control_t *tc = (ppmd_thread_control_t *)threadInfo->t;
+    Bool exited = 0;
     pthread_mutex_lock(&tc->mutex);
     threadInfo->cPpmd = (void *) cPpmd7;
     threadInfo->rc = (void *) rc;
     threadInfo->max_length = max_length;
     threadInfo->result = 0;
-    Bool exited = tc->finished;
+    exited = tc->finished;
     pthread_mutex_unlock(&tc->mutex);
-    unsigned long wait = 50000;
 
     if (exited) {
         pthread_mutex_lock(&tc->mutex);
@@ -158,6 +164,7 @@ int Ppmd7T_decode(CPpmd7 *cPpmd7, CPpmd7z_RangeDec *rc, OutBuffer *out, int max_
     }
     pthread_mutex_lock(&tc->mutex);
     while(True) {
+        const unsigned long wait = 50000;
         ppmd_timedwait(&tc->inEmpty, &tc->mutex, wait);
         if (tc->empty) {
             pthread_mutex_unlock(&tc->mutex);
@@ -190,22 +197,26 @@ static void *
 Ppmd8T_decode_run(void *p) {
     ppmd_info *threadInfo = (ppmd_info *)p;
     ppmd_thread_control_t *tc = (ppmd_thread_control_t *)threadInfo->t;
-    pthread_mutex_lock(&tc->mutex);
-    tc->finished = False;
-    CPpmd8 * cPpmd8 = (CPpmd8 *)(threadInfo->cPpmd);
-    BufferReader *reader = (BufferReader *) cPpmd8->Stream.In;
-    int max_length = threadInfo->max_length;
-    pthread_mutex_unlock(&tc->mutex);
-
+    CPpmd8 *cPpmd8 = NULL;
+    BufferReader *reader = NULL;
+    int max_length = 0;
     int i = 0;
     int result;
+    pthread_mutex_lock(&tc->mutex);
+    tc->finished = False;
+    cPpmd8 = (CPpmd8 *)(threadInfo->cPpmd);
+    reader = (BufferReader *) cPpmd8->Stream.In;
+    max_length = threadInfo->max_length;
+    pthread_mutex_unlock(&tc->mutex);
+
     while (i < max_length ) {
         Bool inbuf_empty = reader->inBuffer->size == reader->inBuffer->pos;
         Bool outbuf_full = threadInfo->out->size == threadInfo->out->pos;
+        int c;
         if (inbuf_empty || outbuf_full) {
             break;
         }
-        int c = Ppmd8_DecodeSymbol(cPpmd8);
+        c = Ppmd8_DecodeSymbol(cPpmd8);
         if (c == PPMD_RESULT_EOF) {
             result = PPMD_RESULT_EOF;
             goto exit;
@@ -231,14 +242,14 @@ Ppmd8T_decode_run(void *p) {
 
 int Ppmd8T_decode(CPpmd8 *cPpmd8, OutBuffer *out, int max_length, ppmd_info *threadInfo) {
     ppmd_thread_control_t *tc = (ppmd_thread_control_t *)threadInfo->t;
+    Bool exited = 0;
     pthread_mutex_lock(&tc->mutex);
     threadInfo->cPpmd = (void *) cPpmd8;
     threadInfo->rc = NULL;  // unused
     threadInfo->max_length = max_length;
     threadInfo->result = 0;
-    Bool exited = tc->finished;
+    exited = tc->finished;
     pthread_mutex_unlock(&tc->mutex);
-    unsigned long wait = 50000;
 
     if (exited) {
         pthread_mutex_lock(&tc->mutex);
@@ -253,6 +264,7 @@ int Ppmd8T_decode(CPpmd8 *cPpmd8, OutBuffer *out, int max_length, ppmd_info *thr
     }
     pthread_mutex_lock(&tc->mutex);
     while(True) {
+        const unsigned long wait = 50000;
         ppmd_timedwait(&tc->inEmpty, &tc->mutex, wait);
         if (tc->empty) {
             pthread_mutex_unlock(&tc->mutex);

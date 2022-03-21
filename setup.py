@@ -30,7 +30,7 @@ def has_option(option):
         return False
 
 
-if has_option("--cffi") or sys.version_info<(3,5) or platform.python_implementation() == "PyPy":
+if has_option("--cffi") or sys.version_info[0]<3 or (sys.version_info<(3,5) and platform.system() == 'Windows') or platform.python_implementation() == "PyPy":
     # packages
     packages = ["pyppmd", "pyppmd.cffi"]
 

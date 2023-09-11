@@ -35,7 +35,7 @@ jobs:
     name: Python ${{ matrix.python-version }} (${{ matrix.architecture }}) - ${{ matrix.os }}
     steps:
       - name: Checkout 🛎️
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 20
       - name: Set up Python 🐍
@@ -70,7 +70,7 @@ jobs:
         distro: [ubuntu20.04]
     steps:
       - name: Checkout 🛎️
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 20
       - uses: uraimo/run-on-arch-action@v2.1.1
@@ -104,7 +104,7 @@ jobs:
             mingw-w64-x86_64-python-setuptools-scm
             mingw-w64-x86_64-gcc
       - name: Checkout 🛎️
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 20
       - name: Run test

@@ -38,7 +38,7 @@ jobs:
         with:
           output-dir: wheelhouse
       - name: Upload wheels
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: ppmd-files
           path: |
@@ -73,7 +73,7 @@ jobs:
         with:
           output-dir: wheelhouse
       - name: Upload wheels
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: ppmd-files
           path: |
@@ -108,13 +108,13 @@ jobs:
         with:
           output-dir: wheelhouse
       - name: Upload source distribution
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: ppmd-files
           path: dist/*.tar.gz
 
       - name: Upload manylinux1_x86_64
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: ppmd-files
           path: |

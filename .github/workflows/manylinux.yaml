@@ -21,7 +21,7 @@ jobs:
       with:
         python-versions: "cp27-cp27mu cp35-cp35m cp36-cp36m cp37-cp37m cp38-cp38 cp39-cp39"
     - name: Upload wheel
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v4
       with:
         name: wheel
         path: dist
